@@ -1,0 +1,102 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <DHT.h>
+
+// Define pins
+#define DHTPIN 2
+#define DHTTYPE DHT11
+#define DISTANCE_SENSOR_PIN A0  // Analog pin connected to the distance sensor's output
+#define RELAYPIN 8
+#define LEDPIN 13
+#define MOTORPIN1 4
+#define MOTORPIN2 5
+#define MOTOR_ENABLE 6
+
+// Initialize objects
+DHT dht(DHTPIN, DHTTYPE);
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Adjust the I2C address if necessary
+
+void setup() {
+  // Set pin modes
+  pinMode(RELAYPIN, OUTPUT);
+  pinMode(LEDPIN, OUTPUT);
+  pinMode(MOTORPIN1, OUTPUT);
+  pinMode(MOTORPIN2, OUTPUT);
+  pinMode(MOTOR_ENABLE, OUTPUT);
+  
+  // Initialize LCD
+  lcd.init();
+  lcd.backlight();
+  lcd.print("Initializing...");
+  
+  // Initialize DHT sensor
+  dht.begin();
+  
+  // Ensure relay and LED are off initially
+  digitalWrite(RELAYPIN, LOW);
+  digitalWrite(LEDPIN, LOW);
+  
+  // Short delay for stabilization
+  delay(2000);
+  
+  // Clear LCD
+  lcd.clear();
+  
+  // Initialize Serial Monitor
+  Serial.begin(9600);
+}
+
+void loop() {
+  // Read temperature and humidity
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
+  
+  // Read distance sensor value
+  int sensorValue = analogRead(DISTANCE_SENSOR_PIN);
+  // Convert sensor value to distance (assumes a specific conversion formula)
+  float distance = (6787 / (sensorValue - 3)) - 4;
+
+  // Display temperature and humidity on LCD
+  lcd.setCursor(0, 0);
+  lcd.print("Temp: ");
+  lcd.print(temperature);
+  lcd.print(" C");
+  
+  lcd.setCursor(0, 1);
+  lcd.print("Humidity: ");
+  lcd.print(humidity);
+  lcd.print(" %");
+  
+  // Print temperature and humidity to Serial Monitor
+  Serial.print("Temperature: ");
+  Serial.print(temperature);
+  Serial.println(" *C");
+  Serial.print("Humidity: ");
+  Serial.print(humidity);
+  Serial.println(" %");
+
+  // Check if distance is within the range where composting is needed
+  if (distance < 300) {  // Example threshold; adjust as needed
+    turnCompost();
+  }
+  
+  // Control relay and LED based on temperature
+  if (temperature < 40) {  // Adjust the threshold as needed
+    digitalWrite(RELAYPIN, HIGH);  // Turn on relay
+    digitalWrite(LEDPIN, HIGH);    // Turn on LED
+  } else {
+    digitalWrite(RELAYPIN, LOW);   // Turn off relay
+    digitalWrite(LEDPIN, LOW);     // Turn off LED
+  }
+  
+  // Wait for 3 seconds before repeating
+  delay(3000);
+}
+
+void turnCompost() {
+  digitalWrite(MOTOR_ENABLE, HIGH);
+  digitalWrite(MOTORPIN1, HIGH);
+  digitalWrite(MOTORPIN2, LOW);
+  delay(5000);  // Run motor for 5 seconds
+  digitalWrite(MOTOR_ENABLE, LOW);
+}
